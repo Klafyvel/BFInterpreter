@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MEMORY_SIZE 30000
+#define MEMORY_SIZE 8
+/*#define DEBUG*/
 
 typedef struct String
 {
@@ -17,7 +18,7 @@ typedef struct String
 enum Code
 {
     ADD = 0,
-    MV = 1, 
+    MV = 1,
     COND_BEGIN = 2,
     COND_END = 3,
     UNKNOW = 4,
@@ -25,7 +26,8 @@ enum Code
     ASK = 6,
     ZERO = 7,
     CELL_ADD = 8,
-    CELL_CPY = 9
+    CELL_CPY = 9,
+    CELL_DUPL = 10
 };
 
 typedef struct Order
@@ -57,6 +59,10 @@ typedef struct Stack
 void addElement(Stack* stack, int address);
 int getElement(Stack* stack);
 void destroyStack(Stack* stack);
+
+void printPrgm(Prgm* prgm);
+void printOrder(Order* order);
+void printMemory(unsigned char *memory, int max_value);
 
 void BFInterpreter(String* code);
 void interpreter(Prgm* prgm);

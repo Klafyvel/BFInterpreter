@@ -20,7 +20,7 @@ void destroyStack(Stack* stack)
 }
 int getElement(Stack* stack)
 {
-    if (stack->first ==NULL) 
+    if (stack->first ==NULL)
         return -1;
     StackElement* second = stack->first->next;
     int address = stack->first->address;
@@ -75,10 +75,12 @@ int motif_detector(const String motif, String* source, int indice)
 void initPrgm(Prgm* prgm, String* source)
 {
 
-    const String MOTIF_CELL_ADD = {"[->+<]", 6};
+    const String MOTIF_CELL_ADD_1 = {"[->+<]", 6};
+    const String MOTIF_CELL_ADD_2 = {"[>+<-]", 6};
     const String MOTIF_CELL_CPY = {">[-]<[->+<]", 11};
     const String MOTIF_ZERO = {"[-]", 3};
-    
+    const String MOTIF_CELL_DUPL = {"[->+>+<<]", 9};
+
     int i;
     String source_without_comments;
     source_without_comments.string = malloc(sizeof(char)*source->length);
@@ -111,18 +113,24 @@ void initPrgm(Prgm* prgm, String* source)
             char cmd = 0;
             int argument = 1;
             if(motif_detector(MOTIF_ZERO, &source_without_comments, i))
-            { 
+            {
                 cmd = ZERO;jump_next = MOTIF_ZERO.length-1;
             }
             else if(motif_detector(MOTIF_CELL_CPY, &source_without_comments, i))
-            {    
+            {
                 cmd = CELL_CPY;
                 jump_next = MOTIF_CELL_CPY.length-1;
             }
-            else if(motif_detector(MOTIF_CELL_ADD, &source_without_comments, i))
+            else if(motif_detector(MOTIF_CELL_ADD_1, &source_without_comments, i) \
+                    || motif_detector(MOTIF_CELL_ADD_2, &source_without_comments, i))
             {
                 cmd = CELL_ADD;
-                jump_next = MOTIF_CELL_ADD.length-1;
+                jump_next = MOTIF_CELL_ADD_1.length-1;
+            }
+            else if(motif_detector(MOTIF_CELL_DUPL, &source_without_comments, i))
+            {
+                cmd = CELL_DUPL;
+                jump_next = MOTIF_CELL_DUPL.length-1;
             }
             else if(source_without_comments.string[i] == '>')
             {
@@ -172,7 +180,7 @@ void initPrgm(Prgm* prgm, String* source)
                 cmd = ASK;
                 if(prev==ASK) {prgm_cursor--;}
             }
-            else 
+            else
             {
                 cmd = UNKNOW;
                 if(prev==UNKNOW) {prgm_cursor--;}
@@ -204,6 +212,7 @@ void BFInterpreter(String *code)
 }
 void interpreter(Prgm *prgm)
 {
+    printPrgm(prgm);
     unsigned int memory_cursor = 0;
     int prgm_cursor = -1;
     unsigned char memory[MEMORY_SIZE] = {0};
@@ -213,11 +222,17 @@ void interpreter(Prgm *prgm)
     {
         prgm_cursor ++;
         Order o = prgm->prgm[prgm_cursor];
+#ifdef DEBUG
+		printf("i = %d", memory_cursor);
+		printOrder(&o);
+#endif
         if (o.code == MV) {
             memory_cursor = (memory_cursor + o.argument)%MEMORY_SIZE;
+			printMemory(memory, MEMORY_SIZE);
         }
         else if(o.code == ADD) {
             memory[memory_cursor] = (memory[memory_cursor] + o.argument) % 255;
+			printMemory(memory, MEMORY_SIZE);
         }
         else if (o.code == COND_BEGIN && memory[memory_cursor]==0) {
             prgm_cursor = o.argument;
@@ -227,28 +242,82 @@ void interpreter(Prgm *prgm)
         }
         else if (o.code == ZERO) {
             memory[memory_cursor]=0;
+			printMemory(memory, MEMORY_SIZE);
         }
         else if (o.code == CELL_CPY)
         {
             memory[(memory_cursor+1)%MEMORY_SIZE] = memory[memory_cursor];
             memory[memory_cursor] = 0;
+			printMemory(memory, MEMORY_SIZE);
         }
         else if (o.code == CELL_ADD)
         {
             memory[(memory_cursor+1)%MEMORY_SIZE] = (memory[memory_cursor] \
                                 + memory[(1+memory_cursor)%MEMORY_SIZE])%255;
             memory[memory_cursor] = 0;
+			printMemory(memory, MEMORY_SIZE);
         }
-        else if (o.code == PRINT) 
+        else if (o.code == PRINT)
         {
             for(i=0; i<o.argument; i++)
                 printf("%c", memory[memory_cursor]);
         }
-        else if (o.code == ASK) 
+        else if (o.code == ASK)
         {
             for(i=0; i<o.argument; i++)
-                scanf("%c", &memory[memory_cursor]);
+                memory[memory_cursor]=getchar();
+			printMemory(memory, MEMORY_SIZE);
+        }
+        else if (o.code == CELL_DUPL)
+        {
+            memory[(memory_cursor+1)%MEMORY_SIZE] += memory[memory_cursor];
+            memory[(memory_cursor+2)%MEMORY_SIZE] += memory[memory_cursor];
+            memory[memory_cursor] = 0;
+			printMemory(memory, MEMORY_SIZE);
         }
     }while (prgm_cursor<(size-1));
+    printf("\n");
+}
+
+void printPrgm(Prgm* prgm)
+{
+	#ifndef DEBUG
+	return;
+	#endif
+    int i;
+    for(i=0;i<prgm->size;i++)
+    {
+        printf("%d :\t", i);
+		printOrder(& (prgm->prgm[i]));
+    }
+}
+
+void printOrder(Order* order)
+{
+        switch(order->code)
+        {
+            case ADD: printf("ADD "); break;
+            case MV: printf("MV "); break;
+            case COND_BEGIN: printf("COND_BEGIN "); break;
+            case COND_END: printf("COND_END "); break;
+            case UNKNOW: printf("UNKNOW "); break;
+            case PRINT: printf("PRINT "); break;
+            case ASK: printf("ASK "); break;
+            case ZERO: printf("ZERO "); break;
+            case CELL_ADD: printf("CELL_ADD "); break;
+            case CELL_CPY: printf("CELL_CPY "); break;
+            case CELL_DUPL: printf("CELL_DUPL"); break;
+            default:break;
+        }
+        printf("\t\t%d\n", order->argument);
+}
+
+void printMemory(unsigned char *memory, int max_value)
+{
+	#ifndef DEBUG
+	return;
+	#endif
+    for(int i=0; i<max_value; i++)
+        printf("|%d\t", memory[i]);
     printf("\n");
 }
